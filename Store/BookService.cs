@@ -12,7 +12,6 @@ namespace Store
         }
         public Book[] GetAllByQuery(string query)
         {
-
             if (Book.IsIsbn(query))
             {
                 return _bookRepository.GetAllByIsbn(query);
