@@ -17,14 +17,18 @@
             </form>
             <span class="navbar-text ml-auto">
                 @{
-                    Cart cart = new Cart();
+                    Cart cart;
+                    if (!Context.Session.TryGetCart(out cart))
+                    {
+                        cart = new Cart();
+                    }
                     if (cart.Items.Count == 0)
                     {
                         @:Корзина пуста
                     }
                     else
                     {
-                        @:Товаров @cart.Items.Count на сумму @cart.Amount
+                        @:Товаров @cart.Items.Values.Sum() на сумму @cart.Amount
                     }
                 }
             </span>
