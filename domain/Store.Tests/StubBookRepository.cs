@@ -14,5 +14,10 @@
         {
             return ResultOfGetAllByTitleOrAuthor;
         }
+
+        public Book GetById(int id)
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

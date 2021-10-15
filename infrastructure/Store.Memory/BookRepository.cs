@@ -22,5 +22,10 @@ namespace Store.Memory
             return books.Where(b => b.Title.ToUpper().Contains(titleOrAuthor.ToUpper()) 
                                     || b.Author.ToUpper().Contains(titleOrAuthor.ToUpper())).ToArray();
         }
+
+        public Book GetById(int id)
+        {
+            return books.Single(b => b.Id.Equals(id));
+        }
     }
 }
