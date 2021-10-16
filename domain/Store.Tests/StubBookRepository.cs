@@ -1,4 +1,6 @@
-﻿namespace Store.Tests
+﻿using System.Collections.Generic;
+
+namespace Store.Tests
 {
     public class StubBookRepository : IBookRepository
     {
@@ -16,6 +18,11 @@
         }
 
         public Book GetById(int id)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public Book[] GetAllByIds(IEnumerable<int> bookIds)
         {
             throw new System.NotImplementedException();
         }
