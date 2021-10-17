@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
+using Microsoft.AspNetCore.Http.Features;
 using Store.Web.Models;
 
 namespace Store.Web.Controllers
@@ -50,11 +51,11 @@ namespace Store.Web.Controllers
                 TotalPrice = order.TotalPrice
             };
         }
-        public IActionResult AddBook(int id)
+        
+        private (Order order, Cart cart) GetOrCreateOrderAndCart()
         {
             Order order;
-            Cart cart;
-            if (HttpContext.Session.TryGetCart(out cart))
+            if (HttpContext.Session.TryGetCart(out Cart cart))
             {
                 order = orderRepository.GetById(cart.OrderId);
             }
@@ -64,62 +65,62 @@ namespace Store.Web.Controllers
                 cart = new Cart(order.Id);
             }
 
-            var book = bookRepository.GetById(id);
-            order.AddOrUpdateBook(book, 1);
-            orderRepository.Update(order);
-
-            cart.TotalCount = order.TotalCount;
-            cart.TotalPrice = order.TotalPrice;
-            HttpContext.Session.Set(cart);
-
-            return RedirectToAction("Index", "Book", new { id });
+            return (order, cart);
         }
-        public IActionResult RemoveBook(int id)
+        private void SaveOrderAndCart(Order order, Cart cart)
         {
-            Order order;
-            Cart cart;
-            if (HttpContext.Session.TryGetCart(out cart))
-            {
-                order = orderRepository.GetById(cart.OrderId);
-            }
-            else
-            {
-                order = orderRepository.Create();
-                cart = new Cart(order.Id);
-            }
-
-            var book = bookRepository.GetById(id);
-            order.RemoveBook(book);
             orderRepository.Update(order);
 
             cart.TotalCount = order.TotalCount;
             cart.TotalPrice = order.TotalPrice;
-            HttpContext.Session.Set(cart);
 
-            return RedirectToAction("Index", "Book", new { id });
+            HttpContext.Session.Set(cart);
         }
-        public IActionResult RemoveItem(int id)
+
+        [HttpPost]
+        public IActionResult UpdateItem(int bookId, int count)
         {
-            Order order;
-            Cart cart;
-            if (HttpContext.Session.TryGetCart(out cart))
-            {
-                order = orderRepository.GetById(cart.OrderId);
-            }
-            else
-            {
-                throw new Exception("Cart not found");
-            }
+            (Order order, Cart cart) = GetOrCreateOrderAndCart();
 
-            var book = bookRepository.GetById(id);
-            order.RemoveItem(book);
-            orderRepository.Update(order);
+            order.GetItem(bookId).Count = count;
 
-            cart.TotalCount = order.TotalCount;
-            cart.TotalPrice = order.TotalPrice;
-            HttpContext.Session.Set(cart);
+            SaveOrderAndCart(order, cart);
 
-            return RedirectToAction("Index", "Book", new { id });
+            return RedirectToAction("Index", "Order");
+        }
+
+        //public IActionResult RemoveBook(int bookId)
+        //{
+        //    (Order order, Cart cart) = GetOrCreateOrderAndCart();
+
+        //    order.GetItem(bookId).Count--;
+
+        //    SaveOrderAndCart(order, cart);
+
+        //    return RedirectToAction("Index", "Book", new { bookId });
+        //}
+
+        public IActionResult AddItem(int bookId, int count = 1)
+        {
+            (Order order, Cart cart) = GetOrCreateOrderAndCart();
+            var book = bookRepository.GetById(bookId);
+
+            order.AddOrUpdateItem(book, count);
+
+            SaveOrderAndCart(order, cart);
+
+            return RedirectToAction("Index", "Book", new { id = bookId });
+        }
+
+        public IActionResult RemoveItem(int bookId)
+        {
+            (Order order, Cart cart) = GetOrCreateOrderAndCart();
+
+            order.RemoveItem(bookId);
+
+            SaveOrderAndCart(order, cart);
+
+            return RedirectToAction("Index", "Order");
         }
     }
 }
