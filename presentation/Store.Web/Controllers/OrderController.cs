@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Store.Contractors;
 using Store.Web.Models;
 
 namespace Store.Web.Controllers
@@ -13,13 +14,16 @@ namespace Store.Web.Controllers
     {
         private readonly IBookRepository _bookRepository;
         private readonly IOrderRepository _orderRepository;
+        private readonly IEnumerable<IDeliveryService> _deliveryServices;
         private readonly INotificationService _notificationService;
 
         public OrderController(IBookRepository bookRepository, 
-            IOrderRepository orderRepository, INotificationService notificationService)
+            IOrderRepository orderRepository, INotificationService notificationService, 
+            IEnumerable<IDeliveryService> deliveryServices)
         {
             this._bookRepository = bookRepository;
             this._orderRepository = orderRepository;
+            this._deliveryServices = deliveryServices;
             this._notificationService = notificationService;
         }
 
@@ -184,7 +188,40 @@ namespace Store.Web.Controllers
                     Errors = new Dictionary<string, string> { { "code", "Неверный код." } }
                 });
             }
-            return View();
+
+            HttpContext.Session.Remove(cellPhone);
+
+            var model = new DeliveryModel
+            {
+                OrderId = id,
+                Methods = _deliveryServices.ToDictionary(service => service.UniqueCode, 
+                                                         service => service.Title)
+            };
+
+            return View("DeliveryMethod", model);
+        }
+
+        [HttpPost]
+        public IActionResult StartDelivery(int id, string uniqueCode)
+        {
+            var deliveryService = _deliveryServices.Single(service => service.UniqueCode == uniqueCode);
+            var order = _orderRepository.GetById(id);
+            var form = deliveryService.CreateForm(order);
+            return View("DeliveryStep", form);
+        }
+
+        [HttpPost]
+        public IActionResult NextDelivery(int id, string uniqueCode, int step, 
+                                          Dictionary<string, string> values)
+        {
+            var deliveryService = _deliveryServices.Single(service => service.UniqueCode == uniqueCode);
+            var form = deliveryService.MoveNext(id, step, values);
+            if (form.IsFinal)
+            {
+                return null;
+            }
+
+            return View("DeliveryStep", form);
         }
     }
 }
