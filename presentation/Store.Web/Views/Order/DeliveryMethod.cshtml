@@ -1,11 +1,12 @@
-﻿@model DeliveryModel
+﻿@using Store.Web.Controllers
+@model DeliveryModel
 @{
     ViewData["Title"] = "Способ доставки";
 }
 
 <h1>Способ доставки</h1>
 
-<form action="@Url.Action("StartDelivery")" method="post">
+<form action="@Url.Action(nameof(OrderController.StartDelivery))" method="post">
     <input type="hidden" name="id" value="@Model.OrderId"/>
     <div class="form-group">
         <label for="code">Способ доставки</label>
@@ -16,4 +17,5 @@
             }
         </select>
     </div>
+    <button type="submit" class="btn btn-success">Далее</button>
 </form>

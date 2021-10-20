@@ -21,7 +21,6 @@ namespace Store.Memory
 
         public void Update(Order order)
         {
-            
         }
     }
 }
