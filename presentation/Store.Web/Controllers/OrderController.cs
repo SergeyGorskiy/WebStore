@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Store.Contractors;
+using Store.Web.Contractors;
 using Store.Web.Models;
 
 namespace Store.Web.Controllers
@@ -15,15 +16,22 @@ namespace Store.Web.Controllers
         private readonly IBookRepository _bookRepository;
         private readonly IOrderRepository _orderRepository;
         private readonly IEnumerable<IDeliveryService> _deliveryServices;
+        private readonly IEnumerable<IPaymentService> _paymentServices;
+        private readonly IEnumerable<IWebContractorService> _webContractorServices;
         private readonly INotificationService _notificationService;
 
         public OrderController(IBookRepository bookRepository, 
-            IOrderRepository orderRepository, INotificationService notificationService, 
-            IEnumerable<IDeliveryService> deliveryServices)
+                               IOrderRepository orderRepository,
+                               IEnumerable<IDeliveryService> deliveryServices, 
+                               IEnumerable<IPaymentService> paymentServices,
+                               IEnumerable<IWebContractorService> webContractorServices,
+                               INotificationService notificationService)
         {
             this._bookRepository = bookRepository;
             this._orderRepository = orderRepository;
             this._deliveryServices = deliveryServices;
+            this._paymentServices = paymentServices;
+            this._webContractorServices = webContractorServices;
             this._notificationService = notificationService;
         }
 
@@ -62,7 +70,6 @@ namespace Store.Web.Controllers
                 TotalPrice = order.TotalPrice
             };
         }
-        
         private (Order order, Cart cart) GetOrCreateOrderAndCart()
         {
             Order order;
@@ -167,7 +174,7 @@ namespace Store.Web.Controllers
         }
 
         [HttpPost]
-        public IActionResult Confirmate(int id, string cellPhone, int code)
+        public IActionResult Confirm(int id, string cellPhone, int code)
         {
             int? storedCode = HttpContext.Session.GetInt32(cellPhone);
             if (storedCode == null)
@@ -188,6 +195,10 @@ namespace Store.Web.Controllers
                     Errors = new Dictionary<string, string> { { "code", "Неверный код." } }
                 });
             }
+
+            var order = _orderRepository.GetById(id);
+            order.CellPhone = cellPhone;
+            _orderRepository.Update(order);
 
             HttpContext.Session.Remove(cellPhone);
 
@@ -215,13 +226,63 @@ namespace Store.Web.Controllers
                                           Dictionary<string, string> values)
         {
             var deliveryService = _deliveryServices.Single(service => service.UniqueCode == uniqueCode);
-            var form = deliveryService.MoveNext(id, step, values);
+            var form = deliveryService.MoveNextForm(id, step, values);
             if (form.IsFinal)
             {
-                return null;
+                var order = _orderRepository.GetById(id);
+                order.Delivery = deliveryService.GetDelivery(form);
+                _orderRepository.Update(order);
+
+                var model = new DeliveryModel
+                {
+                    OrderId = id,
+                    Methods = _paymentServices.ToDictionary(service => service.UniqueCode,
+                                                            service => service.Title)
+                };
+
+                return View("PaymentMethod", model);
             }
 
             return View("DeliveryStep", form);
+        }
+
+        [HttpPost]
+        public IActionResult StartPayment(int id, string uniqueCode)
+        {
+            var paymentService = _paymentServices.Single(service => service.UniqueCode == uniqueCode);
+            var order = _orderRepository.GetById(id);
+            var form = paymentService.CreateForm(order);
+
+            var webContractorService =
+                _webContractorServices.SingleOrDefault(service => service.UniqueCode == uniqueCode);
+
+            if (webContractorService != null)
+                return Redirect(webContractorService.GetUri);
+            
+            return View("PaymentStep", form);
+        }
+
+        [HttpPost]
+        public IActionResult NextPayment(int id, string uniqueCode, int step,
+            Dictionary<string, string> values)
+        {
+            var paymentService = _paymentServices.Single(service => service.UniqueCode == uniqueCode);
+            var form = paymentService.MoveNextForm(id, step, values);
+            if (form.IsFinal)
+            {
+                var order = _orderRepository.GetById(id);
+                order.Payment = paymentService.GetPayment(form);
+                _orderRepository.Update(order);
+
+                return View("Finish");
+            }
+            return View("PaymentStep", form);
+        }
+
+        public IActionResult Finish()
+        {
+            HttpContext.Session.RemoveCart();
+            return View();
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace Store.Contractors
 {
@@ -11,7 +12,7 @@ namespace Store.Contractors
             {"1", "Москва" },
             {"2", "Санкт-Петербург" },
         };
-        private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> postmates = 
+        private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> postamates = 
             new Dictionary<string, IReadOnlyDictionary<string, string>>
             {
                 {
@@ -34,7 +35,7 @@ namespace Store.Contractors
                 }
             };
  
-        public string UniqueCode => "Postamate";
+        public string UniqueCode => "Postamat";
         public string Title => "Доставка через постаматы в Москве и Санкт-Петербурге.";
         public Form CreateForm(Order order)
         {
@@ -48,7 +49,7 @@ namespace Store.Contractors
             });
         }
 
-        public Form MoveNext(int orderId, int step, IReadOnlyDictionary<string, string> values)
+        public Form MoveNextForm(int orderId, int step, IReadOnlyDictionary<string, string> values)
         {
             if (step == 1)
             {
@@ -57,7 +58,7 @@ namespace Store.Contractors
                     return new Form(UniqueCode, orderId, 2, false, new Field[]
                     {
                         new HiddenField("Город", "city", "1"), 
-                        new SelectionField("Постмат", "postmate", "1", postmates["1"])
+                        new SelectionField("Постамат", "postamat", "1", postamates["1"])
                     });
                 }
                 else if (values["city"] == "2")
@@ -65,12 +66,12 @@ namespace Store.Contractors
                     return new Form(UniqueCode, orderId, 2, false, new Field[]
                     {
                         new HiddenField("Город", "city", "2"),
-                        new SelectionField("Постмат", "postmate", "4", postmates["2"])
+                        new SelectionField("Постамат", "postamat", "4", postamates["2"])
                     });
                 }
                 else
                 {
-                    throw new InvalidOperationException("Invalid postmate");
+                    throw new InvalidOperationException("Invalid postamat");
                 }
             }
             else if (step == 2)
@@ -78,13 +79,34 @@ namespace Store.Contractors
                 return new Form(UniqueCode, orderId, 3, true, new Field[]
                 {
                     new HiddenField("Город", "city", values["city"]),
-                    new HiddenField("Постмат", "postmate", values["postmate"]), 
+                    new HiddenField("Постамат", "postamat", values["postamat"]), 
                 });
             }
             else
             {
-                throw new InvalidOperationException("Invalid postmate step");
+                throw new InvalidOperationException("Invalid postamat step");
             }
+        }
+
+        public OrderDelivery GetDelivery(Form form)
+        {
+            if (form.UniqueCode != UniqueCode || !form.IsFinal)
+                throw new InvalidOperationException("Invalid form.");
+
+            var cityId = form.Fields.Single(f => f.Name == "city").Value;
+            var cityName = cities[cityId];
+            var postamatId = form.Fields.Single(f => f.Name == "postamat").Value;
+            var postamatName = postamates[cityId][postamatId];
+            var parameters = new Dictionary<string, string>
+            {
+                { nameof(cityId), cityId },
+                { nameof(cityName), cityName },
+                { nameof(postamatId), postamatId },
+                { nameof(postamatName), postamatName },
+            };
+            var description = $"Город: {cityName}\nПостамат: {postamatName}";
+
+            return new OrderDelivery(UniqueCode, description, 150m, parameters);
         }
     }
 }

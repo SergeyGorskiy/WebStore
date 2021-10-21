@@ -12,6 +12,11 @@ namespace Store.Web
     public static class SessionExtensions
     {
         private const string key = "Cart";
+
+        public static void RemoveCart(this ISession session)
+        {
+            session.Remove(key);
+        }
         public static void Set(this ISession session, Cart value)
         {
             if(value == null)
