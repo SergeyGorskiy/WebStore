@@ -5,25 +5,25 @@ namespace Store
     public class OrderItem
     {
         public int BookId { get; }
+        public decimal Price { get; }
 
-        private int count;
+        private int _count;
         public int Count
         {
-            get { return count; }
+            get { return _count; }
             set
             {
                 ThrowIfInvalidCount(value);
-                count = value;
+                _count = value;
             }
         }
-        public decimal Price { get; }
 
-        public OrderItem(int bookId, int count, decimal price)
+        public OrderItem(int bookId, decimal price, int count)
         {
             ThrowIfInvalidCount(count);
             BookId = bookId;
-            Count = count;
             Price = price;
+            Count = count;
         }
 
         private static void ThrowIfInvalidCount(int count)
