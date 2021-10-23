@@ -3,21 +3,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Store.Web.App;
 
 namespace Store.Web.Controllers
 {
     public class BookController : Controller
     {
-        private readonly IBookRepository bookRepository;
+        private readonly BookService _bookService;
 
-        public BookController(IBookRepository bookRepository)
+        public BookController(BookService bookService)
         {
-            this.bookRepository = bookRepository;
+            this._bookService = bookService;
         }
         public IActionResult Index(int id)
         {
-            Book book = bookRepository.GetById(id);
-            return View(book);
+            var model = _bookService.GetById(id);
+            return View(model);
         }
     }
 }
