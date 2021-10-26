@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Store.Contractors;
@@ -41,7 +42,7 @@ namespace Store.Web.Controllers
         }
 
         [HttpPost]
-        public IActionResult AddItem(int bookId, int count)
+        public IActionResult AddItem(int bookId, int count = 1)
         {
             _orderService.AddBook(bookId, count);
 
@@ -69,109 +70,94 @@ namespace Store.Web.Controllers
             return View("Confirmation", model);
         }
 
+        [HttpPost]
+        public IActionResult ConfirmCellPhone(string cellPhone, int confirmationCode)
+        {
+            var model =  _orderService.ConfirmCellPhone(cellPhone, confirmationCode);
+            if (model.Errors.Count > 0)
+                return View("Confirmation", model);
 
+            var deliveryMethods = _deliveryServices.ToDictionary(service => service.Name, service => service.Title);
 
+            return View("DeliveryMethod", deliveryMethods);
+        }
 
+        [HttpPost]
+        public IActionResult StartDelivery(string serviceName)
+        {
+            var deliveryService = _deliveryServices.Single(service => service.Name == serviceName);
+            var order = _orderService.GetOrder();
+            var form = deliveryService.FirstForm(order);
 
+            var webContractorService = _webContractorServices.SingleOrDefault(service => service.Name == serviceName);
+            if (webContractorService == null)
+                return View("DeliveryStep", form);
 
-        //private (Order order, Cart cart) GetOrCreateOrderAndCart()
-        //{
-        //    Order order;
-        //    if (HttpContext.Session.TryGetCart(out Cart cart))
-        //    {
-        //        order = _orderRepository.GetById(cart.OrderId);
-        //    }
-        //    else
-        //    {
-        //        order = _orderRepository.Create();
-        //        cart = new Cart(order.Id, 0, 0m);
-        //    }
+            var returnUri = GetReturnUri(nameof(NextDelivery));
+            var redirectUri = webContractorService.StartSession(form.Parameters, returnUri);
 
-        //    return (order, cart);
-        //}
-        //private void SaveOrderAndCart(Order order, Cart cart)
-        //{
-        //    _orderRepository.Update(order);
+            return Redirect(redirectUri.ToString());
+        }
 
-        //    cart = new Cart(order.Id, order.TotalCount, order.TotalPrice);
+        private Uri GetReturnUri(string action)
+        {
+            var builder = new UriBuilder(Request.Scheme, Request.Host.Host)
+            {
+                Path = Url.Action(action),
+                Query = null
+            };
+            if (Request.Host.Port != null)
+                builder.Port = Request.Host.Port.Value;
 
-        //    HttpContext.Session.Set(cart);
-        //}
+            return builder.Uri;
+        }
 
-        
+        [HttpPost]
+        public IActionResult NextDelivery(string serviceName, int step, Dictionary<string, string> values)
+        {
+            var deliveryService = _deliveryServices.Single(service => service.Name == serviceName);
+            var form = deliveryService.NextForm(step, values);
+            if (!form.IsFinal)
+                return View("DeliveryStep", form);
 
+            var delivery = deliveryService.GetDelivery(form);
+            _orderService.SetDelivery(delivery);
 
-        //[HttpPost]
-        //public IActionResult StartDelivery(int id, string uniqueCode)
-        //{
-        //    var deliveryService = _deliveryServices.Single(service => service.UniqueCode == uniqueCode);
-        //    var order = _orderRepository.GetById(id);
-        //    var form = deliveryService.CreateForm(order);
-        //    return View("DeliveryStep", form);
-        //}
+            var paymentMethods = _paymentServices.ToDictionary(service => service.Name, service => service.Title);
 
-        //[HttpPost]
-        //public IActionResult NextDelivery(int id, string uniqueCode, int step, 
-        //                                  Dictionary<string, string> values)
-        //{
-        //    var deliveryService = _deliveryServices.Single(service => service.UniqueCode == uniqueCode);
-        //    var form = deliveryService.MoveNextForm(id, step, values);
-        //    if (form.IsFinal)
-        //    {
-        //        var order = _orderRepository.GetById(id);
-        //        order.Delivery = deliveryService.GetDelivery(form);
-        //        _orderRepository.Update(order);
+            return View("PaymentMethod", paymentMethods);
+        }
 
-        //        var model = new DeliveryModel
-        //        {
-        //            OrderId = id,
-        //            Methods = _paymentServices.ToDictionary(service => service.UniqueCode,
-        //                                                    service => service.Title)
-        //        };
+        [HttpPost]
+        public IActionResult StartPayment(string serviceName)
+        {
+            var paymentService = _paymentServices.Single(service => service.Name == serviceName);
+            var order = _orderService.GetOrder();
+            var form = paymentService.FirstForm(order);
 
-        //        return View("PaymentMethod", model);
-        //    }
+            var webContractorService = _webContractorServices.SingleOrDefault(service => service.Name == serviceName);
+            if (webContractorService == null)
+                return View("PaymentStep", form);
 
-        //    return View("DeliveryStep", form);
-        //}
+            var returnUri = GetReturnUri(nameof(NextPayment));
+            var redirectUri = webContractorService.StartSession(form.Parameters, returnUri);
 
-        //[HttpPost]
-        //public IActionResult StartPayment(int id, string uniqueCode)
-        //{
-        //    var paymentService = _paymentServices.Single(service => service.UniqueCode == uniqueCode);
-        //    var order = _orderRepository.GetById(id);
-        //    var form = paymentService.CreateForm(order);
+            return Redirect(redirectUri.ToString());
+        }
 
-        //    var webContractorService =
-        //        _webContractorServices.SingleOrDefault(service => service.UniqueCode == uniqueCode);
+        [HttpPost]
+        public IActionResult NextPayment(string serviceName, int step, Dictionary<string, string> values)
+        {
+            var paymentService = _paymentServices.Single(service => service.Name == serviceName);
+            var form = paymentService.NextForm(step, values);
+            if (!form.IsFinal)
+                return View("PaymentStep", form);
 
-        //    if (webContractorService != null)
-        //        return Redirect(webContractorService.GetUri);
-            
-        //    return View("PaymentStep", form);
-        //}
+            var payment = paymentService.GetPayment(form);
+            var model = _orderService.SetPayment(payment);
 
-        //[HttpPost]
-        //public IActionResult NextPayment(int id, string uniqueCode, int step,
-        //    Dictionary<string, string> values)
-        //{
-        //    var paymentService = _paymentServices.Single(service => service.UniqueCode == uniqueCode);
-        //    var form = paymentService.MoveNextForm(id, step, values);
-        //    if (form.IsFinal)
-        //    {
-        //        var order = _orderRepository.GetById(id);
-        //        order.Payment = paymentService.GetPayment(form);
-        //        _orderRepository.Update(order);
+            return View("Finish", model);
 
-        //        return View("Finish");
-        //    }
-        //    return View("PaymentStep", form);
-        //}
-
-        //public IActionResult Finish()
-        //{
-        //    HttpContext.Session.RemoveCart();
-        //    return View();
-        //}
+        }
     }
 }

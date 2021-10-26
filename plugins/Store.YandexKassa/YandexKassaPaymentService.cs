@@ -1,27 +1,61 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Http;
 using Store.Contractors;
 using Store.Web.Contractors;
-
 namespace Store.YandexKassa
 {
     public class YandexKassaPaymentService : IPaymentService, IWebContractorService
     {
-        public string UniqueCode => "YandexKassa";
-        public string GetUri => "/YandexKassa/";
-        public string Title => "Оплата банковской картой";
-        public Form CreateForm(Order order)
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public YandexKassaPaymentService(IHttpContextAccessor httpContextAccessor)
         {
-            return new Form(UniqueCode, order.Id, 1, false, new Field[0]);
+            _httpContextAccessor = httpContextAccessor;
         }
 
-        public Form MoveNextForm(int orderId, int step, IReadOnlyDictionary<string, string> values)
+        private HttpRequest Request => _httpContextAccessor.HttpContext.Request;
+
+        public string Name => "YandexKassa";
+
+        public string Title => "Оплата банковской картой";
+
+        public Form FirstForm(Order order)
         {
-            return new Form(UniqueCode, orderId, 2, true, new Field[0]);
+            return Form.CreateFirst(Name).AddParameter("orderId", order.Id.ToString());
+        }
+
+        public Form NextForm(int step, IReadOnlyDictionary<string, string> values)
+        {
+            if (step != 1)
+                throw new InvalidOperationException("Invalid Yandex.Kassa payment step.");
+
+            return Form.CreateLast(Name, step + 1, values);
         }
 
         public OrderPayment GetPayment(Form form)
         {
-            return new OrderPayment(UniqueCode, "Оплата картой", new Dictionary<string, string>());
+            if (form.ServiceName != Name || !form.IsFinal)
+                throw new InvalidOperationException("Invalid payment form.");
+            
+            return new OrderPayment(Name, "Оплата картой", form.Parameters);
+        }
+
+        public Uri StartSession(IReadOnlyDictionary<string, string> parameters, Uri returnUri)
+        {
+            var queryString = QueryString.Create(parameters);
+            queryString += QueryString.Create("returnUri", returnUri.ToString());
+
+            var builder = new UriBuilder(Request.Scheme, Request.Host.Host)
+            {
+                Path = "YandexKassa/",
+                Query = queryString.ToString()
+            };
+
+            if (Request.Host.Port != null)
+                builder.Port = Request.Host.Port.Value;
+
+            return builder.Uri;
         }
     }
 }

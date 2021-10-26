@@ -1,8 +1,13 @@
-﻿namespace Store.Web.Contractors
+﻿using System;
+using System.Collections.Generic;
+
+namespace Store.Web.Contractors
 {
     public interface IWebContractorService
     {
-        public string UniqueCode { get; }
-        public string GetUri { get; }
+        public string Name { get; }
+
+        Uri StartSession(IReadOnlyDictionary<string, string> parameter, Uri returnUri);
+
     }
 }

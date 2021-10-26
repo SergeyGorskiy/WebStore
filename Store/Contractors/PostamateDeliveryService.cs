@@ -34,53 +34,37 @@ namespace Store.Contractors
                     }
                 }
             };
- 
-        public string UniqueCode => "Postamat";
+        public string Name => "Postamat";
         public string Title => "Доставка через постаматы в Москве и Санкт-Петербурге.";
-        public Form CreateForm(Order order)
+
+        public Form FirstForm(Order order)
         {
-            if (order == null)
-            {
-                throw new ArgumentNullException(nameof(order));
-            }
-            return new Form(UniqueCode, order.Id, 1, false, new[]
-            {
-                new SelectionField("Город", "city", "1", cities) 
-            });
+            return Form.CreateFirst(Name).AddParameter("orderId", order.Id.ToString())
+                .AddField(new SelectionField("Город", "city", "1", cities));
         }
 
-        public Form MoveNextForm(int orderId, int step, IReadOnlyDictionary<string, string> values)
+        public Form NextForm(int step, IReadOnlyDictionary<string, string> values)
         {
             if (step == 1)
             {
                 if (values["city"] == "1")
                 {
-                    return new Form(UniqueCode, orderId, 2, false, new Field[]
-                    {
-                        new HiddenField("Город", "city", "1"), 
-                        new SelectionField("Постамат", "postamat", "1", postamates["1"])
-                    });
+                    return Form.CreateNext(Name, 2, values)
+                        .AddField(new SelectionField("Постамат", "postamat", "1", postamates["1"]));
                 }
-                else if (values["city"] == "2")
+                if (values["city"] == "2")
                 {
-                    return new Form(UniqueCode, orderId, 2, false, new Field[]
-                    {
-                        new HiddenField("Город", "city", "2"),
-                        new SelectionField("Постамат", "postamat", "4", postamates["2"])
-                    });
+                    return Form.CreateNext(Name, 2, values)
+                        .AddField(new SelectionField("Постамат", "postamat", "4", postamates["2"]));
                 }
                 else
                 {
-                    throw new InvalidOperationException("Invalid postamat");
+                    throw new InvalidOperationException("Invalid postamat city");
                 }
             }
-            else if (step == 2)
+            if (step == 2)
             {
-                return new Form(UniqueCode, orderId, 3, true, new Field[]
-                {
-                    new HiddenField("Город", "city", values["city"]),
-                    new HiddenField("Постамат", "postamat", values["postamat"]), 
-                });
+                return Form.CreateLast(Name, 3, values);
             }
             else
             {
@@ -90,13 +74,14 @@ namespace Store.Contractors
 
         public OrderDelivery GetDelivery(Form form)
         {
-            if (form.UniqueCode != UniqueCode || !form.IsFinal)
+            if (form.ServiceName != Name || !form.IsFinal)
                 throw new InvalidOperationException("Invalid form.");
 
-            var cityId = form.Fields.Single(f => f.Name == "city").Value;
+            var cityId = form.Parameters["city"];
             var cityName = cities[cityId];
-            var postamatId = form.Fields.Single(f => f.Name == "postamat").Value;
+            var postamatId = form.Parameters["postamat"];
             var postamatName = postamates[cityId][postamatId];
+
             var parameters = new Dictionary<string, string>
             {
                 { nameof(cityId), cityId },
@@ -106,7 +91,7 @@ namespace Store.Contractors
             };
             var description = $"Город: {cityName}\nПостамат: {postamatName}";
 
-            return new OrderDelivery(UniqueCode, description, 150m, parameters);
+            return new OrderDelivery(Name, description, 150m, parameters);
         }
     }
 }
