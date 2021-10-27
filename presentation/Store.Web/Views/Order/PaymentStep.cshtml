@@ -1,4 +1,5 @@
-﻿@model Form
+﻿@using Store.Web.Controllers
+@model Form
 @{
     ViewData["Title"] = "Параметры оплаты";
 }
@@ -10,7 +11,7 @@
     <input type="hidden" name="step" value="@Model.Step" />
     @foreach (var parameter in Model.Parameters)
      {
-        <input type="hidden" name="values[@parameter.Key]" value="@parameter"/>
+        <input type="hidden" name="values[@parameter.Key]" value="@parameter.Value"/>
      }
     @foreach (var field in Model.Fields)
      {   if (field is SelectionField selectionField)
