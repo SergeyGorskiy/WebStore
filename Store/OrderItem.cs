@@ -1,29 +1,32 @@
 ﻿using System;
+using Store.Data;
 
 namespace Store
 {
     public class OrderItem
     {
-        public int BookId { get; }
-        public decimal Price { get; }
+        private readonly OrderItemDto dto;
+        public int BookId => dto.BookId;
 
-        private int _count;
         public int Count
         {
-            get { return _count; }
+            get => dto.Count;
             set
             {
                 ThrowIfInvalidCount(value);
-                _count = value;
+                dto.Count = value;
             }
         }
 
-        public OrderItem(int bookId, decimal price, int count)
+        public decimal Price
         {
-            ThrowIfInvalidCount(count);
-            BookId = bookId;
-            Price = price;
-            Count = count;
+            get => dto.Price;
+            set => dto.Price = value;
+        }
+
+        internal OrderItem(OrderItemDto dto)
+        {
+            this.dto = dto;
         }
 
         private static void ThrowIfInvalidCount(int count)
@@ -32,6 +35,31 @@ namespace Store
             {
                 throw new ArgumentOutOfRangeException("Count must be greater than zero.");
             }
+        }
+
+        public static class DtoFactory
+        {
+            public static OrderItemDto Create(OrderDto order, int bookId, decimal price, int count)
+            {
+                if (order == null)
+                    throw new ArgumentNullException(nameof(order));
+
+                ThrowIfInvalidCount(count);
+                return new OrderItemDto
+                {
+                    BookId = bookId,
+                    Price = price,
+                    Count = count,
+                    Order = order
+                };
+            }
+        }
+
+        public static class Mapper
+        {
+            public static OrderItem Map(OrderItemDto dto) => new OrderItem(dto);
+
+            public static OrderItemDto Map(OrderItem domain) => domain.dto;
         }
     }
 }

@@ -7,11 +7,11 @@ namespace Store
     {
         public string UniqueCode { get; }
         public string Description { get; }
-        public decimal Amount { get; set; }
+        public decimal Price { get; set; }
 
         public IReadOnlyDictionary<string, string> Parameters { get; }
 
-        public OrderDelivery(string uniqueCode, string description, decimal amount,
+        public OrderDelivery(string uniqueCode, string description, decimal price,
             IReadOnlyDictionary<string, string> parameters)
         {
             if (string.IsNullOrWhiteSpace(uniqueCode))
@@ -25,7 +25,7 @@ namespace Store
 
             UniqueCode = uniqueCode;
             Description = description;
-            Amount = amount;
+            Price = price;
             Parameters = parameters;
 
         }
