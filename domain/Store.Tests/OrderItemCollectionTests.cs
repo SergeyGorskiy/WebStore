@@ -42,19 +42,15 @@ namespace Store.Tests
         {
             var order = CreateTestOrder();
 
-            var book = new Book(null);
+            order.Items.Add(4, 10m, 10);
             
-            order.Items.Add(1, 10m, 1);
-            
-            Assert.Equal(13, order.Items.Get(1).Count);
+            Assert.Equal(10, order.Items.Get(4).Count);
         }
 
         [Fact]
         public void AddOrUpdateItem_WithNonExistingItem_AddsCount()
         {
             var order = CreateTestOrder();
-
-            var book = new Book(null);
 
             order.Items.Add(4, 30m, 10);
 
@@ -67,7 +63,7 @@ namespace Store.Tests
             
             order.Items.Remove(1);
             
-            Assert.Equal(1, order.Items.Get(4).Count);
+            Assert.Collection(order.Items, item => Assert.Equal(2, item.BookId));
         }
         [Fact]
         public void RemoveItem_WithNonExistingItem_ThrowsException()
