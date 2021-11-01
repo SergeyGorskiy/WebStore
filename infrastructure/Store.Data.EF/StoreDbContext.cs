@@ -22,6 +22,20 @@ namespace Store.Data.EF
         {
             BuildBooks(modelBuilder);
             BuildOrders(modelBuilder);
+            BuildOrderItems(modelBuilder);
+        }
+
+        private void BuildOrderItems(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<OrderItemDto>(action =>
+            {
+                action.Property(dto => dto.Price)
+                      .HasColumnType("money");
+
+                action.HasOne(dto => dto.Order)
+                      .WithMany(dto => dto.Items)
+                      .IsRequired();
+            });
         }
 
         private static void BuildOrders(ModelBuilder modelBuilder)

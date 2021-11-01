@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Store.Contractors;
+using Store.Data.EF;
 using Store.Memory;
 using Store.Web.App;
 using Store.Web.Contractors;
@@ -37,6 +38,9 @@ namespace Store.Web
                 options.Cookie.HttpOnly = true;
                 options.Cookie.IsEssential = true;
             });
+
+            services.AddEfRepositories(Configuration.GetConnectionString("Store"));
+
             services.AddSingleton<INotificationService, DebugNotificationService>();
             services.AddSingleton<IDeliveryService, PostamateDeliveryService>();
             services.AddSingleton<IPaymentService, CashPaymentService>();
