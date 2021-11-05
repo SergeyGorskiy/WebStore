@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore.Http;
 using PhoneNumbers;
+using Store.Messages;
 
 namespace Store.Web.App
 {
@@ -211,6 +212,8 @@ namespace Store.Web.App
             order.Payment = payment;
             _orderRepository.Update(order);
             Session.RemoveCart();
+
+            _notificationService.StartProcess(order);
 
             return Map(order);
         }

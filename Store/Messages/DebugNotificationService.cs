@@ -1,7 +1,9 @@
 ﻿using System.Diagnostics;
+using System.Net.Mail;
+using System.Text;
 using System.Threading.Tasks;
 
-namespace Store.Memory
+namespace Store.Messages
 {
     public class DebugNotificationService : INotificationService
     {
@@ -18,10 +20,20 @@ namespace Store.Memory
 
         public void StartProcess(Order order)
         {
-            Debug.WriteLine("Order ID {0}", order.Id);
-            //Debug.WriteLine("Delivery: {0}", (object)order.Delivery.Description);
-            //Debug.WriteLine("Payment: {0}",(object)order.Payment.Description);
+            using (var client = new SmtpClient())
+            {
+                var message = new MailMessage("from@at.my.domain", "to@at.my.domain");
+                message.Subject = "Заказ #" + order.Id;
 
+                var builder = new StringBuilder();
+                foreach (var item in order.Items)
+                {
+                    builder.Append($"{item.BookId}, {item.Count}");
+                    builder.AppendLine();
+                }
+                message.Body = builder.ToString();
+                client.Send(message);
+            }
         }
 
         public Task StartProcessAsync(Order order)
