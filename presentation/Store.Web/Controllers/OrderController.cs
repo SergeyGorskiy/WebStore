@@ -2,14 +2,11 @@
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
+using Microsoft.CodeAnalysis.CSharp;
 using Store.Contractors;
 using Store.Web.App;
 using Store.Web.Contractors;
-using Store.Web.Models;
 
 namespace Store.Web.Controllers
 {
@@ -33,33 +30,36 @@ namespace Store.Web.Controllers
         }
 
         [HttpGet]
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            if (_orderService.TryGetModel(out OrderModel model))
+            var (hasValue, model) = await _orderService.TryGetModelAsync();
+
+            if (hasValue)
                 return View(model);
 
             return View("Empty");
         }
 
         [HttpPost]
-        public IActionResult AddItem(int bookId, int count = 1)
+        public async Task<IActionResult> AddItem(int bookId, int count = 1)
         {
-            _orderService.AddBook(bookId, count);
+            await _orderService.AddBookAsync(bookId, count);
 
             return RedirectToAction("Index", "Book", new { id = bookId });
         }
 
         [HttpPost]
-        public IActionResult UpdateItem(int bookId, int count)
+        public async Task<IActionResult> UpdateItem(int bookId, int count)
         {
-            var model = _orderService.UpdateBook(bookId, count);
+            var model = await _orderService.UpdateBookAsync(bookId, count);
             return View("Index", model);
         }
 
         [HttpPost]
-        public IActionResult RemoveItem(int bookId)
+        public async Task<IActionResult> RemoveItem(int bookId)
         {
-            var model = _orderService.RemoveBook(bookId);
+            var model = await _orderService.RemoveBookAsync(bookId);
+
             return View("Index", model);
         }
 

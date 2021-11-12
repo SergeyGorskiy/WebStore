@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using PhoneNumbers;
 using Store.Messages;
@@ -39,6 +40,40 @@ namespace Store.Web.App
             return false;
         }
 
+        public async Task<(bool hasValue, OrderModel model)> TryGetModelAsync()
+        {
+            var (hasValue, order) = await TryGetOrderAsync();
+
+            if (hasValue)
+            {
+                return (true, Map(order));
+            }
+
+            return (false, null);
+        }
+
+        internal bool TryGetOrder(out Order order)
+        {
+            if (Session.TryGetCart(out Cart cart))
+            {
+                order = _orderRepository.GetById(cart.OrderId);
+                return true;
+            }
+            order = null;
+            return false;
+        }
+
+        internal async Task<(bool hasValue, Order order)> TryGetOrderAsync()
+        {
+            if (Session.TryGetCart(out Cart cart))
+            {
+                var order = await _orderRepository.GetByIdAsync(cart.OrderId);
+                return (true, order);
+            }
+
+            return (false, null);
+        }
+
         private OrderModel Map(Order order)
         {
             var books = GetBooks(order);
@@ -70,17 +105,6 @@ namespace Store.Web.App
             return _bookRepository.GetAllByIds(bookIds);
         }
 
-        internal bool TryGetOrder(out Order order)
-        {
-            if (Session.TryGetCart(out Cart cart))
-            {
-                order = _orderRepository.GetById(cart.OrderId);
-                return true;
-            }
-            order = null;
-            return false;
-        }
-
         public OrderModel AddBook(int bookId, int count)
         {
             if (count < 1)
@@ -95,21 +119,50 @@ namespace Store.Web.App
             return Map(order);
         }
 
+        public async Task<OrderModel> AddBookAsync(int bookId, int count)
+        {
+            if (count < 1)
+                throw new InvalidOperationException("Too few books to add");
+
+            var (hasValue, order) = await TryGetOrderAsync();
+
+            if (!hasValue)
+                order = await _orderRepository.CreateAsync();
+
+            await AddOrUpdateBookAsync(order, bookId, count);
+            UpdateSession(order);
+
+            return Map(order);
+        }
+
         private void UpdateSession(Order order)
         {
             var cart = new Cart(order.Id, order.TotalCount, order.TotalPrice);
             Session.Set(cart);
         }
 
-        private void AddOrUpdateBook(Order order, in int bookId, in int count)
+        internal void AddOrUpdateBook(Order order, in int bookId, in int count)
         {
             var book = _bookRepository.GetById(bookId);
+
             if (order.Items.TryGet(bookId, out OrderItem orderItem))
                 orderItem.Count += count;
             else
                 order.Items.Add(book.Id, book.Price, count);
 
             _orderRepository.Update(order);
+        }
+
+        internal async Task AddOrUpdateBookAsync(Order order, int bookId, int count)
+        {
+            var book = await _bookRepository.GetByIdAsync(bookId);
+
+            if (order.Items.TryGet(bookId, out OrderItem orderItem))
+                orderItem.Count += count;
+            else
+                order.Items.Add(book.Id, book.Price, count);
+
+            await _orderRepository.UpdateAsync(order);
         }
 
         public OrderModel UpdateBook(int bookId, int count)
@@ -122,6 +175,18 @@ namespace Store.Web.App
 
             return Map(order);
         }
+
+        public async Task<OrderModel> UpdateBookAsync(int bookId, int count)
+        {
+            var order = await GetOrderAsync();
+            order.Items.Get(bookId).Count = count;
+
+            await _orderRepository.UpdateAsync(order);
+            UpdateSession(order);
+
+            return Map(order);
+        }
+
         public OrderModel RemoveBook(int bookId)
         {
             var order = GetOrder();
@@ -133,10 +198,31 @@ namespace Store.Web.App
             return Map(order);
         }
 
+        public async Task<OrderModel> RemoveBookAsync(int bookId)
+        {
+            var order = await GetOrderAsync();
+            order.Items.Remove(bookId);
+
+            await _orderRepository.UpdateAsync(order);
+            UpdateSession(order);
+
+            return Map(order);
+        }
+
         public Order GetOrder()
         {
             if (TryGetOrder(out Order order))
                 return order;
+            throw new InvalidOperationException("Empty session.");
+        }
+
+        public async Task<Order> GetOrderAsync()
+        {
+            var (hasValue, order) = await TryGetOrderAsync();
+
+            if (hasValue)
+                return order;
+
             throw new InvalidOperationException("Empty session.");
         }
 
@@ -217,5 +303,8 @@ namespace Store.Web.App
 
             return Map(order);
         }
+
+
+        
     }
 }

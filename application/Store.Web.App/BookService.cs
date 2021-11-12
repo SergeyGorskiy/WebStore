@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Store.Web.App
 {
@@ -12,17 +13,18 @@ namespace Store.Web.App
             _bookRepository = bookRepository;
         }
 
-        public BookModel GetById(int id)
+        public async Task<BookModel> GetByIdAsync(int id)
         {
-            var book = _bookRepository.GetById(id);
+            var book = await _bookRepository.GetByIdAsync(id);
+
             return Map(book);
         }
 
-        public IReadOnlyCollection<BookModel> GetAllByQuery(string query)
+        public async Task<IReadOnlyCollection<BookModel>> GetAllByQueryAsync(string query)
         {
             var books = Book.IsIsbn(query)
-                ? _bookRepository.GetAllByIsbn(query)
-                : _bookRepository.GetAllByTitleOrAuthor(query);
+                ? await _bookRepository.GetAllByIsbnAsync(query)
+                : await _bookRepository.GetAllByTitleOrAuthorAsync(query);
 
             return books.Select(Map).ToArray();
         }
