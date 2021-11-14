@@ -6,10 +6,13 @@ namespace Store.Messages
     {
         void SendConfirmationCode(string cellPhone, int code);
 
+        Task SendConfirmationCodeAsync(string cellPhone, int code);
+
         Task SendConfirmationAsync(string cellPhone, int code);
 
         void StartProcess(Order order);
 
         Task StartProcessAsync(Order order);
+        
     }
 }

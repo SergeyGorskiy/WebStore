@@ -40,11 +40,6 @@ namespace Store.Data.EF
             return dtos.Select(Book.Mapper.Map).ToArray();
         }
 
-        public Book GetById(int id)
-        {
-            throw new System.NotImplementedException();
-        }
-
         public async Task<Book> GetByIdAsync(int id)
         {
             var dbContext = _dbContextFactory.Create(typeof(BookRepository));
@@ -54,13 +49,13 @@ namespace Store.Data.EF
             return Book.Mapper.Map(dto);
         }
 
-        public Book[] GetAllByIds(IEnumerable<int> bookIds)
+        public async Task<Book[]> GetAllByIdsAsync(IEnumerable<int> bookIds)
         {
             var dbContext = _dbContextFactory.Create(typeof(BookRepository));
 
-            return dbContext.Books.Where(book => bookIds
-                .Contains(book.Id)).AsEnumerable()
-                .Select(Book.Mapper.Map).ToArray();
+            var dtos = await dbContext.Books.Where(book => bookIds.Contains(book.Id)).ToArrayAsync();
+
+            return dtos.Select(Book.Mapper.Map).ToArray();
         }
     }
 }

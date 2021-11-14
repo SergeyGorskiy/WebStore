@@ -7,19 +7,19 @@ namespace Store
 {
     public class Order
     {
-        private readonly OrderDto dto;
+        private readonly OrderDto _dto;
 
-        public int Id => dto.Id;
+        public int Id => _dto.Id;
 
         public string CellPhone
         {
-            get => dto.CellPhone;
+            get => _dto.CellPhone;
             set
             {
                 if (string.IsNullOrWhiteSpace(value))
                     throw new ArgumentException(nameof(CellPhone));
 
-                dto.CellPhone = value;
+                _dto.CellPhone = value;
             }
         }
 
@@ -27,21 +27,21 @@ namespace Store
         {
             get
             {
-                if (dto.DeliveryUniqueCode == null)
+                if (_dto.DeliveryUniqueCode == null)
                     return null;
 
-                return new OrderDelivery(dto.DeliveryUniqueCode,
-                    dto.DeliveryDescription, dto.DeliveryPrice, dto.DeliveryParameters);
+                return new OrderDelivery(_dto.DeliveryUniqueCode,
+                    _dto.DeliveryDescription, _dto.DeliveryPrice, _dto.DeliveryParameters);
             }
             set
             {
                 if (value == null)
                     throw new ArgumentException(nameof(Delivery));
 
-                dto.DeliveryUniqueCode = value.UniqueCode;
-                dto.DeliveryDescription = value.Description;
-                dto.DeliveryPrice = value.Price;
-                dto.DeliveryParameters = value.Parameters
+                _dto.DeliveryUniqueCode = value.UniqueCode;
+                _dto.DeliveryDescription = value.Description;
+                _dto.DeliveryPrice = value.Price;
+                _dto.DeliveryParameters = value.Parameters
                     .ToDictionary(p => p.Key, p => p.Value);
             }
         }
@@ -50,20 +50,20 @@ namespace Store
         {
             get
             {
-                if (dto.PaymentServiceName == null)
+                if (_dto.PaymentServiceName == null)
                     return null;
                 
-                return new OrderPayment(dto.PaymentServiceName, 
-                    dto.PaymentDescription, dto.PaymentParameters);
+                return new OrderPayment(_dto.PaymentServiceName, 
+                    _dto.PaymentDescription, _dto.PaymentParameters);
             }
             set
             {
                 if (value == null)
                     throw new ArgumentException(nameof(Payment));
 
-                dto.PaymentServiceName = value.UniqueCode;
-                dto.PaymentDescription = value.Description;
-                dto.PaymentParameters = value.Parameters
+                _dto.PaymentServiceName = value.UniqueCode;
+                _dto.PaymentDescription = value.Description;
+                _dto.PaymentParameters = value.Parameters
                     .ToDictionary(p => p.Key, p => p.Value);
             }
         }
@@ -77,7 +77,7 @@ namespace Store
 
         public Order(OrderDto dto)
         {
-            this.dto = dto;
+            this._dto = dto;
             Items = new OrderItemCollection(dto);
         }
 
@@ -90,7 +90,7 @@ namespace Store
         {
             public static Order Map(OrderDto dto) => new Order(dto);
 
-            public static OrderDto Map(Order domain) => domain.dto;
+            public static OrderDto Map(Order domain) => domain._dto;
         }
     }
 }

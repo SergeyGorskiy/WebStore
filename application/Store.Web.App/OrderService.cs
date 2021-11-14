@@ -28,39 +28,16 @@ namespace Store.Web.App
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public bool TryGetModel(out OrderModel model)
-        {
-            if (TryGetOrder(out Order order))
-            {
-                model = Map(order);
-                return true;
-            }
-
-            model = null;
-            return false;
-        }
-
         public async Task<(bool hasValue, OrderModel model)> TryGetModelAsync()
         {
             var (hasValue, order) = await TryGetOrderAsync();
 
             if (hasValue)
             {
-                return (true, Map(order));
+                return (true, await MapAsync(order));
             }
 
             return (false, null);
-        }
-
-        internal bool TryGetOrder(out Order order)
-        {
-            if (Session.TryGetCart(out Cart cart))
-            {
-                order = _orderRepository.GetById(cart.OrderId);
-                return true;
-            }
-            order = null;
-            return false;
         }
 
         internal async Task<(bool hasValue, Order order)> TryGetOrderAsync()
@@ -74,9 +51,9 @@ namespace Store.Web.App
             return (false, null);
         }
 
-        private OrderModel Map(Order order)
+        internal async Task<OrderModel> MapAsync(Order order)
         {
-            var books = GetBooks(order);
+            var books = await GetBooksAsync(order);
             var items = from item in order.Items
                 join book in books on item.BookId equals book.Id
                 select new OrderItemModel
@@ -99,24 +76,11 @@ namespace Store.Web.App
             };
         }
 
-        internal IEnumerable<Book> GetBooks(Order order)
+        internal async Task<IEnumerable<Book>> GetBooksAsync(Order order)
         {
             var bookIds = order.Items.Select(item => item.BookId);
-            return _bookRepository.GetAllByIds(bookIds);
-        }
 
-        public OrderModel AddBook(int bookId, int count)
-        {
-            if (count < 1)
-                throw new InvalidOperationException("Too few books to add");
-
-            if (!TryGetOrder(out Order order))
-                order = _orderRepository.Create();
-
-            AddOrUpdateBook(order, bookId, count);
-            UpdateSession(order);
-            
-            return Map(order);
+            return await _bookRepository.GetAllByIdsAsync(bookIds);
         }
 
         public async Task<OrderModel> AddBookAsync(int bookId, int count)
@@ -132,25 +96,13 @@ namespace Store.Web.App
             await AddOrUpdateBookAsync(order, bookId, count);
             UpdateSession(order);
 
-            return Map(order);
+            return await MapAsync(order);
         }
 
         private void UpdateSession(Order order)
         {
             var cart = new Cart(order.Id, order.TotalCount, order.TotalPrice);
             Session.Set(cart);
-        }
-
-        internal void AddOrUpdateBook(Order order, in int bookId, in int count)
-        {
-            var book = _bookRepository.GetById(bookId);
-
-            if (order.Items.TryGet(bookId, out OrderItem orderItem))
-                orderItem.Count += count;
-            else
-                order.Items.Add(book.Id, book.Price, count);
-
-            _orderRepository.Update(order);
         }
 
         internal async Task AddOrUpdateBookAsync(Order order, int bookId, int count)
@@ -165,17 +117,6 @@ namespace Store.Web.App
             await _orderRepository.UpdateAsync(order);
         }
 
-        public OrderModel UpdateBook(int bookId, int count)
-        {
-            var order = GetOrder();
-            order.Items.Get(bookId).Count = count;
-
-            _orderRepository.Update(order);
-            UpdateSession(order);
-
-            return Map(order);
-        }
-
         public async Task<OrderModel> UpdateBookAsync(int bookId, int count)
         {
             var order = await GetOrderAsync();
@@ -184,18 +125,7 @@ namespace Store.Web.App
             await _orderRepository.UpdateAsync(order);
             UpdateSession(order);
 
-            return Map(order);
-        }
-
-        public OrderModel RemoveBook(int bookId)
-        {
-            var order = GetOrder();
-            order.Items.Remove(bookId);
-
-            _orderRepository.Update(order);
-            UpdateSession(order);
-
-            return Map(order);
+            return await MapAsync(order);
         }
 
         public async Task<OrderModel> RemoveBookAsync(int bookId)
@@ -206,14 +136,7 @@ namespace Store.Web.App
             await _orderRepository.UpdateAsync(order);
             UpdateSession(order);
 
-            return Map(order);
-        }
-
-        public Order GetOrder()
-        {
-            if (TryGetOrder(out Order order))
-                return order;
-            throw new InvalidOperationException("Empty session.");
+            return await MapAsync(order);
         }
 
         public async Task<Order> GetOrderAsync()
@@ -226,23 +149,25 @@ namespace Store.Web.App
             throw new InvalidOperationException("Empty session.");
         }
 
-        public OrderModel SendConfirmation(string cellPhone)
+        public async Task<OrderModel> SendConfirmationAsync(string cellPhone)
         {
-            var order = GetOrder();
-            var model = Map(order);
+            var order = await GetOrderAsync();
+            var model = await MapAsync(order);
             if (TryFormatPhone(cellPhone, out string formattedPhone))
             {
                 var confirmationCode = 1111; // todo: random.Next(1000, 9999)
                 model.CellPhone = formattedPhone;
                 Session.SetInt32(formattedPhone, confirmationCode);
-                _notificationService.SendConfirmationCode(formattedPhone, confirmationCode);
+                await _notificationService.SendConfirmationCodeAsync(formattedPhone, confirmationCode);
             }
             else
                 model.Errors["cellPhone"] = "Номер телефона не соответствует формату +79876543210";
-            
+
             return model;
         }
+
         private readonly PhoneNumberUtil _phoneNumberUtil = PhoneNumberUtil.GetInstance();
+
         private bool TryFormatPhone(string cellPhone, out string formattedPhone)
         {
             try
@@ -258,7 +183,7 @@ namespace Store.Web.App
             }
         }
 
-        public OrderModel ConfirmCellPhone(string cellPhone, int confirmationCode)
+        public async Task<OrderModel> ConfirmCellPhoneAsync(string cellPhone, int confirmationCode)
         {
             int? storedCode = Session.GetInt32(cellPhone);
             var model = new OrderModel();
@@ -274,37 +199,35 @@ namespace Store.Web.App
                 return model;
             }
 
-            var order = GetOrder();
+            var order = await GetOrderAsync();
             order.CellPhone = cellPhone;
-            _orderRepository.Update(order);
+            await _orderRepository.UpdateAsync(order);
 
             Session.Remove(cellPhone);
 
-            return Map(order);
+            return await MapAsync(order);
         }
 
-        public OrderModel SetDelivery(OrderDelivery delivery)
+        public async Task<OrderModel> SetDeliveryAsync(OrderDelivery delivery)
         {
-            var order = GetOrder();
+            var order = await GetOrderAsync();
             order.Delivery = delivery;
-            _orderRepository.Update(order);
+            await _orderRepository.UpdateAsync(order);
 
-            return Map(order);
+            return await MapAsync(order);
         }
 
-        public OrderModel SetPayment(OrderPayment payment)
+        public async Task<OrderModel> SetPaymentAsync(OrderPayment payment)
         {
-            var order = GetOrder();
+            var order = await GetOrderAsync();
             order.Payment = payment;
-            _orderRepository.Update(order);
+            await _orderRepository.UpdateAsync(order);
             Session.RemoveCart();
 
-            _notificationService.StartProcess(order);
+            //await _notificationService.StartProcessAsync(order);
 
-            return Map(order);
+            return await MapAsync(order);
         }
 
-
-        
     }
 }

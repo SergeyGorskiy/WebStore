@@ -64,16 +64,16 @@ namespace Store.Web.Controllers
         }
 
         [HttpPost]
-        public IActionResult SendConfirmation(string cellPhone)
+        public async Task<IActionResult> SendConfirmation(string cellPhone)
         {
-            var model = _orderService.SendConfirmation(cellPhone);
+            var model = await _orderService.SendConfirmationAsync(cellPhone);
             return View("Confirmation", model);
         }
 
         [HttpPost]
-        public IActionResult ConfirmCellPhone(string cellPhone, int confirmationCode)
+        public async Task<IActionResult> ConfirmCellPhone(string cellPhone, int confirmationCode)
         {
-            var model =  _orderService.ConfirmCellPhone(cellPhone, confirmationCode);
+            var model = await _orderService.ConfirmCellPhoneAsync(cellPhone, confirmationCode);
             if (model.Errors.Count > 0)
                 return View("Confirmation", model);
 
@@ -83,10 +83,10 @@ namespace Store.Web.Controllers
         }
 
         [HttpPost]
-        public IActionResult StartDelivery(string serviceName)
+        public async Task<IActionResult> StartDelivery(string serviceName)
         {
             var deliveryService = _deliveryServices.Single(service => service.Name == serviceName);
-            var order = _orderService.GetOrder();
+            var order = await _orderService.GetOrderAsync();
             var form = deliveryService.FirstForm(order);
 
             var webContractorService = _webContractorServices.SingleOrDefault(service => service.Name == serviceName);
@@ -94,7 +94,7 @@ namespace Store.Web.Controllers
                 return View("DeliveryStep", form);
 
             var returnUri = GetReturnUri(nameof(NextDelivery));
-            var redirectUri = webContractorService.StartSession(form.Parameters, returnUri);
+            var redirectUri = await webContractorService.StartSessionAsync(form.Parameters, returnUri);
 
             return Redirect(redirectUri.ToString());
         }
@@ -113,7 +113,7 @@ namespace Store.Web.Controllers
         }
 
         [HttpPost]
-        public IActionResult NextDelivery(string serviceName, int step, Dictionary<string, string> values)
+        public async Task<IActionResult> NextDelivery(string serviceName, int step, Dictionary<string, string> values)
         {
             var deliveryService = _deliveryServices.Single(service => service.Name == serviceName);
             var form = deliveryService.NextForm(step, values);
@@ -121,7 +121,7 @@ namespace Store.Web.Controllers
                 return View("DeliveryStep", form);
 
             var delivery = deliveryService.GetDelivery(form);
-            _orderService.SetDelivery(delivery);
+            await _orderService.SetDeliveryAsync(delivery);
 
             var paymentMethods = _paymentServices.ToDictionary(service => service.Name, service => service.Title);
 
@@ -129,10 +129,10 @@ namespace Store.Web.Controllers
         }
 
         [HttpPost]
-        public IActionResult StartPayment(string serviceName)
+        public async Task<IActionResult> StartPayment(string serviceName)
         {
             var paymentService = _paymentServices.Single(service => service.Name == serviceName);
-            var order = _orderService.GetOrder();
+            var order = await _orderService.GetOrderAsync();
             var form = paymentService.FirstForm(order);
 
             var webContractorService = _webContractorServices.SingleOrDefault(service => service.Name == serviceName);
@@ -140,13 +140,13 @@ namespace Store.Web.Controllers
                 return View("PaymentStep", form);
 
             var returnUri = GetReturnUri(nameof(NextPayment));
-            var redirectUri = webContractorService.StartSession(form.Parameters, returnUri);
+            var redirectUri = await webContractorService.StartSessionAsync(form.Parameters, returnUri);
 
             return Redirect(redirectUri.ToString());
         }
 
         [HttpPost]
-        public IActionResult NextPayment(string serviceName, int step, Dictionary<string, string> values)
+        public async Task<IActionResult> NextPayment(string serviceName, int step, Dictionary<string, string> values)
         {
             var paymentService = _paymentServices.Single(service => service.Name == serviceName);
             var form = paymentService.NextForm(step, values);
@@ -154,10 +154,9 @@ namespace Store.Web.Controllers
                 return View("PaymentStep", form);
 
             var payment = paymentService.GetPayment(form);
-            var model = _orderService.SetPayment(payment);
+            var model = await _orderService.SetPaymentAsync(payment);
 
             return View("Finish", model);
-
         }
     }
 }

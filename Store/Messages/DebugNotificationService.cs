@@ -12,9 +12,17 @@ namespace Store.Messages
             Debug.WriteLine("Cell phone: {0}, code: {1:0000}.", cellPhone, code);
         }
 
+        public Task SendConfirmationCodeAsync(string cellPhone, int code)
+        {
+            Debug.WriteLine("Cell phone: {0}, code: {1:0000}.", cellPhone, code);
+
+            return Task.CompletedTask;
+        }
+
         public Task SendConfirmationAsync(string cellPhone, int code)
         {
             Debug.WriteLine("Cell phone: {0}, code: {1:0000}.", cellPhone, code);
+
             return Task.CompletedTask;
         }
 
